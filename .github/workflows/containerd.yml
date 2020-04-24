@@ -1,0 +1,93 @@
+name: containerd
+
+on:
+  push:
+  schedule:
+    - cron: "42 1 * * */6"
+
+jobs:
+  critest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: install cri tools
+        run: |
+          wget -O- https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/critest-$VERSION-linux-amd64.tar.gz | \
+          sudo tar xzv -C /usr/local/bin/
+          wget -O- https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz | \
+          sudo tar zxv -C /usr/local/bin
+        env:
+          VERSION: v1.17.0
+      - name: configure cni conf
+        run: |
+          sudo mkdir -p /etc/cni/net.d/
+          cat << EOF | sudo tee /etc/cni/net.d/10-containerd-net.conflist
+          {
+            "cniVersion": "0.3.1",
+            "name": "containerd-net",
+            "plugins": [
+              {
+                "type": "bridge",
+                "bridge": "cni0",
+                "isGateway": true,
+                "ipMasq": true,
+                "promiscMode": true,
+                "ipam": {
+                  "type": "host-local",
+                  "ranges": [
+                    [{
+                      "subnet": "10.88.0.0/16"
+                    }]
+                  ],
+                  "routes": [
+                    { "dst": "0.0.0.0/0" }
+                  ]
+                }
+              },
+              {
+                "type": "portmap",
+                "capabilities": {"portMappings": true}
+              }
+            ]
+          }
+          EOF
+      - name: install containerd
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt purge -y moby-engine
+          sudo apt update -y
+          sudo apt install -y --no-install-recommends socat
+          wget https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2019.1_all.deb -O keyring.deb
+          sudo dpkg -i keyring.deb
+          cat << EOF | sudo tee /etc/apt/sources.list.d/debian.list
+          deb http://deb.debian.org/debian/ unstable main
+          deb http://incoming.debian.org/debian-buildd buildd-unstable main
+          EOF
+          cat << EOF | sudo tee /etc/apt/preferences.d/debian
+          Package: *
+          Pin: release o=Debian
+          Pin-Priority: 990
+          EOF
+          sudo apt update -y
+          sudo apt install -y --no-install-recommends containerd containernetworking-plugins
+      - name: check versions
+        run: |
+          set -x
+          critest -version
+          runc -v
+          sudo ctr version
+      - name: check status
+        run: |
+          set -x
+          ip addr
+          ip route
+          sudo systemctl status containerd
+          sudo crictl --runtime-endpoint=unix:///run/containerd/containerd.sock info
+      - name: run critest
+        run: |
+          sudo critest -ginkgo.v -runtime-endpoint=unix:///run/containerd/containerd.sock
+      - name: check log
+        if: failure()
+        run: |
+          set -x
+          sudo dmesg
+          sudo journalctl -u containerd --no-pager
