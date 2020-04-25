@@ -4,6 +4,11 @@ on:
   push:
   schedule:
     - cron: "42 1 * * */6"
+defaults:
+  run:
+    shell: bash --noprofile --norc -exo pipefail {0}
+env:
+  DEBIAN_FRONTEND: noninteractive
 
 jobs:
   critest:
@@ -50,12 +55,15 @@ jobs:
             ]
           }
           EOF
-      - name: install containerd
+      - name: uninstall moby-engine
         run: |
-          export DEBIAN_FRONTEND=noninteractive
           sudo apt purge -y moby-engine
+      - name: install socat
+        run: |
           sudo apt update -y
           sudo apt install -y --no-install-recommends socat
+      - name: install containerd
+        run: |
           wget https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2019.1_all.deb -O keyring.deb
           sudo dpkg -i keyring.deb
           cat << EOF | sudo tee /etc/apt/sources.list.d/debian.list
@@ -71,13 +79,11 @@ jobs:
           sudo apt install -y --no-install-recommends containerd containernetworking-plugins
       - name: check versions
         run: |
-          set -x
           critest -version
           runc -v
           sudo ctr version
       - name: check status
         run: |
-          set -x
           ip addr
           ip route
           sudo systemctl status containerd
@@ -88,6 +94,87 @@ jobs:
       - name: check log
         if: failure()
         run: |
-          set -x
           sudo dmesg
           sudo journalctl -u containerd --no-pager
+  kubernetes-e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: disable swap
+        run: |
+          sudo swapoff -a -v
+      - name: uninstall moby-engine
+        run: |
+          sudo apt purge -y moby-engine
+      - name: install kubernetes
+        run: |
+          sudo apt update -y
+          sudo apt install -y --no-install-recommends kubeadm
+      - name: install containerd
+        run: |
+          wget https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2019.1_all.deb -O keyring.deb
+          sudo dpkg -i keyring.deb
+          cat << EOF | sudo tee /etc/apt/sources.list.d/debian.list
+          deb http://deb.debian.org/debian/ unstable main
+          deb http://incoming.debian.org/debian-buildd buildd-unstable main
+          EOF
+          cat << EOF | sudo tee /etc/apt/preferences.d/debian
+          Package: *
+          Pin: release o=Debian
+          Pin-Priority: 990
+          EOF
+          sudo apt update -y
+          sudo apt install -y --no-install-recommends containerd
+      - name: setup containerd
+        run: |
+          sudo mkdir -p /mnt/containerd
+          cat << EOF | sudo tee /etc/containerd/config.toml
+          version = 2
+          root = "/mnt/containerd"
+          [plugins]
+            [plugins."io.containerd.grpc.v1.cri"]
+              [plugins."io.containerd.grpc.v1.cri".cni]
+                bin_dir = "/opt/cni/bin/"
+                conf_dir = "/etc/cni/net.d"
+            [plugins."io.containerd.internal.v1.opt"]
+              path = "/var/lib/containerd/opt"
+          EOF
+          sudo systemctl restart containerd
+      - name: bootstrap kubernetes
+        run: |
+          sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --cri-socket=unix:///run/containerd/containerd.sock
+          mkdir -p $HOME/.kube
+          sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+          sudo chown $(id -u):$(id -g) $HOME/.kube/config
+          kubectl taint nodes --all node-role.kubernetes.io/master-
+          kubectl apply -f https://docs.projectcalico.org/v3.11/manifests/calico.yaml
+      - name: check status
+        timeout-minutes: 15
+        run: |
+          kubectl wait --for condition=ready --timeout=300s -n kube-system pods --all
+          kubectl wait --for condition=available --timeout=600s -n kube-system deployments --all
+          kubectl get --show-labels -o wide nodes
+          kubectl get --show-labels -o wide -n kube-system deployments
+          kubectl get --show-labels -o wide -n kube-system daemonsets
+          kubectl get --show-labels -o wide --all-namespaces pods
+      - name: run kubernetes e2e test
+        run: |
+          git clone --depth=1 --branch $VERSION https://github.com/kubernetes/kubernetes
+          cd kubernetes
+          make generated_files
+          go test -mod=vendor -c ./test/e2e/
+          ./e2e.test -test.v -ginkgo.v -kubeconfig=$HOME/.kube/config \
+            -ginkgo.focus="\[Conformance\]|\[NodeConformance\]" \
+            -ginkgo.skip="\[Flaky\]|\[Slow\]|\[Serial\]"
+        env:
+          VERSION: v1.18.2
+      - name: check logs
+        if: failure()
+        run: |
+          df -h
+          free -h
+          sudo dmesg
+          sudo systemctl status containerd
+          sudo journalctl -u containerd --no-pager
+          sudo systemctl status kubelet
+          sudo journalctl -u kubelet --no-pager
+          sudo crictl --runtime-endpoint=unix:///run/containerd/containerd.sock ps -a
