@@ -12,6 +12,31 @@ env:
 
 jobs:
   critest:
+    strategy:
+      matrix:
+        suite:
+          - name: unstable
+            list: |
+              deb http://deb.debian.org/debian/ unstable main
+              deb http://incoming.debian.org/debian-buildd buildd-unstable main
+            prefer: |
+              Package: *
+              Pin-Priority: 1000
+              Pin: release o=Debian, a=unstable
+          - name: experimental
+            list: |
+              deb http://deb.debian.org/debian/ unstable main
+              deb http://incoming.debian.org/debian-buildd buildd-unstable main
+              deb http://deb.debian.org/debian/ experimental main
+              deb http://incoming.debian.org/debian-buildd buildd-experimental main
+            prefer: |
+              Package: *
+              Pin-Priority: 1000
+              Pin: release o=Debian, a=unstable
+
+              Package: containerd
+              Pin-Priority: 1001
+              Pin: release o=Debian, a=experimental
     runs-on: ubuntu-latest
     steps:
       - name: install cri tools
@@ -67,13 +92,10 @@ jobs:
           wget https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2019.1_all.deb -O keyring.deb
           sudo dpkg -i keyring.deb
           cat << EOF | sudo tee /etc/apt/sources.list.d/debian.list
-          deb http://deb.debian.org/debian/ unstable main
-          deb http://incoming.debian.org/debian-buildd buildd-unstable main
+          ${{ matrix.suite.list }}
           EOF
           cat << EOF | sudo tee /etc/apt/preferences.d/debian
-          Package: *
-          Pin: release o=Debian
-          Pin-Priority: 990
+          ${{ matrix.suite.prefer }}
           EOF
           sudo apt update -y
           sudo apt install -y --no-install-recommends containerd containernetworking-plugins
@@ -97,6 +119,31 @@ jobs:
           sudo dmesg
           sudo journalctl -u containerd --no-pager
   kubernetes-e2e:
+    strategy:
+      matrix:
+        suite:
+          - name: unstable
+            list: |
+              deb http://deb.debian.org/debian/ unstable main
+              deb http://incoming.debian.org/debian-buildd buildd-unstable main
+            prefer: |
+              Package: *
+              Pin-Priority: 1000
+              Pin: release o=Debian, a=unstable
+          - name: experimental
+            list: |
+              deb http://deb.debian.org/debian/ unstable main
+              deb http://incoming.debian.org/debian-buildd buildd-unstable main
+              deb http://deb.debian.org/debian/ experimental main
+              deb http://incoming.debian.org/debian-buildd buildd-experimental main
+            prefer: |
+              Package: *
+              Pin-Priority: 1000
+              Pin: release o=Debian, a=unstable
+
+              Package: containerd
+              Pin-Priority: 1001
+              Pin: release o=Debian, a=experimental
     runs-on: ubuntu-latest
     steps:
       - name: disable swap
@@ -114,13 +161,10 @@ jobs:
           wget https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2019.1_all.deb -O keyring.deb
           sudo dpkg -i keyring.deb
           cat << EOF | sudo tee /etc/apt/sources.list.d/debian.list
-          deb http://deb.debian.org/debian/ unstable main
-          deb http://incoming.debian.org/debian-buildd buildd-unstable main
+          ${{ matrix.suite.list }}
           EOF
           cat << EOF | sudo tee /etc/apt/preferences.d/debian
-          Package: *
-          Pin: release o=Debian
-          Pin-Priority: 990
+          ${{ matrix.suite.prefer }}
           EOF
           sudo apt update -y
           sudo apt install -y --no-install-recommends containerd
