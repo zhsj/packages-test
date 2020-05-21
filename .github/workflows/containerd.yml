@@ -23,6 +23,7 @@ jobs:
               Package: *
               Pin-Priority: 1000
               Pin: release o=Debian, a=unstable
+            cri_test_ver: v1.17.0
           - name: experimental
             list: |
               deb http://deb.debian.org/debian/ unstable main
@@ -37,16 +38,15 @@ jobs:
               Package: containerd
               Pin-Priority: 1001
               Pin: release o=Debian, a=experimental
+            cri_test_ver: v1.18.0
     runs-on: ubuntu-latest
     steps:
       - name: install cri tools
         run: |
-          wget -O- https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/critest-$VERSION-linux-amd64.tar.gz | \
+          wget -O- https://github.com/kubernetes-sigs/cri-tools/releases/download/${{ matrix.suite.cri_test_ver }}/critest-${{ matrix.suite.cri_test_ver }}-linux-amd64.tar.gz | \
           sudo tar xzv -C /usr/local/bin/
-          wget -O- https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz | \
+          wget -O- https://github.com/kubernetes-sigs/cri-tools/releases/download/${{ matrix.suite.cri_test_ver }}/crictl-${{ matrix.suite.cri_test_ver }}-linux-amd64.tar.gz | \
           sudo tar zxv -C /usr/local/bin
-        env:
-          VERSION: v1.17.0
       - name: configure cni conf
         run: |
           sudo mkdir -p /etc/cni/net.d/
@@ -144,6 +144,8 @@ jobs:
               Package: containerd
               Pin-Priority: 1001
               Pin: release o=Debian, a=experimental
+        k8s_e2e_ver:
+          - v1.18.3
     runs-on: ubuntu-latest
     steps:
       - name: disable swap
@@ -202,15 +204,13 @@ jobs:
           kubectl get --show-labels -o wide --all-namespaces pods
       - name: run kubernetes e2e test
         run: |
-          git clone --depth=1 --branch $VERSION https://github.com/kubernetes/kubernetes
+          git clone --depth=1 --branch ${{ matrix.k8s_e2e_ver }} https://github.com/kubernetes/kubernetes
           cd kubernetes
           make generated_files
           go test -mod=vendor -c ./test/e2e/
           ./e2e.test -test.v -ginkgo.v -kubeconfig=$HOME/.kube/config \
             -ginkgo.focus="\[Conformance\]|\[NodeConformance\]" \
             -ginkgo.skip="\[Flaky\]|\[Slow\]|\[Serial\]"
-        env:
-          VERSION: v1.18.2
       - name: check logs
         if: failure()
         run: |
