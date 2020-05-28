@@ -98,7 +98,7 @@ jobs:
           ${{ matrix.suite.prefer }}
           EOF
           sudo apt update -y
-          sudo apt install -y --no-install-recommends containerd containernetworking-plugins
+          sudo apt install -y --no-install-recommends --allow-downgrades containerd containernetworking-plugins
       - name: check versions
         run: |
           critest -version
@@ -169,7 +169,7 @@ jobs:
           ${{ matrix.suite.prefer }}
           EOF
           sudo apt update -y
-          sudo apt install -y --no-install-recommends containerd
+          sudo apt install -y --no-install-recommends --allow-downgrades containerd
       - name: setup containerd
         run: |
           sudo mkdir -p /mnt/containerd
