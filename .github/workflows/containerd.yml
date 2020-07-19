@@ -145,7 +145,7 @@ jobs:
               Pin-Priority: 1001
               Pin: release o=Debian, a=experimental
         k8s_e2e_ver:
-          - v1.18.3
+          - v1.18.6
     runs-on: ubuntu-latest
     steps:
       - name: disable swap
@@ -154,10 +154,6 @@ jobs:
       - name: uninstall moby-engine
         run: |
           sudo apt purge -y moby-engine
-      - name: install kubernetes
-        run: |
-          sudo apt update -y
-          sudo apt install -y --no-install-recommends kubeadm
       - name: install containerd
         run: |
           wget https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2019.1_all.deb -O keyring.deb
@@ -185,6 +181,10 @@ jobs:
               path = "/var/lib/containerd/opt"
           EOF
           sudo systemctl restart containerd
+      - name: install kubernetes
+        run: |
+          sudo apt update -y
+          sudo apt install -y --no-install-recommends kubeadm
       - name: bootstrap kubernetes
         run: |
           sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --cri-socket=unix:///run/containerd/containerd.sock
