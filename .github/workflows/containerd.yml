@@ -67,10 +67,6 @@ jobs:
       - name: uninstall moby-engine
         run: |
           sudo apt purge -y moby-engine
-      - name: install socat
-        run: |
-          sudo apt update -y
-          sudo apt install -y --no-install-recommends socat
       - name: install containerd
         run: |
           wget https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2019.1_all.deb -O keyring.deb
