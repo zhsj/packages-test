@@ -162,8 +162,9 @@ jobs:
       - name: check status
         timeout-minutes: 15
         run: |
-          kubectl wait --for condition=ready --timeout=300s -n kube-system pods --all
+          kubectl get --show-labels -o wide --all-namespaces all
           kubectl wait --for condition=available --timeout=600s -n kube-system deployments --all
+          kubectl wait --for condition=ready --timeout=600s -n kube-system pods --all
           kubectl get --show-labels -o wide nodes
           kubectl get --show-labels -o wide -n kube-system deployments
           kubectl get --show-labels -o wide -n kube-system daemonsets
