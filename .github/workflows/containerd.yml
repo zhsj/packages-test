@@ -66,7 +66,7 @@ jobs:
           EOF
       - name: uninstall moby-engine
         run: |
-          sudo apt purge -y moby-engine
+          sudo apt-get purge -y moby-engine
       - name: install containerd
         run: |
           wget https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2019.1_all.deb -O keyring.deb
@@ -77,8 +77,8 @@ jobs:
           cat << EOF | sudo tee /etc/apt/preferences.d/debian
           ${{ matrix.suite.prefer }}
           EOF
-          sudo apt update -y
-          sudo apt install -y --no-install-recommends --allow-downgrades containerd containernetworking-plugins
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends --allow-downgrades containerd containernetworking-plugins
       - name: check versions
         run: |
           critest -version
@@ -119,7 +119,7 @@ jobs:
           sudo swapoff -a -v
       - name: uninstall moby-engine
         run: |
-          sudo apt purge -y moby-engine
+          sudo apt-get purge -y moby-engine
       - name: install containerd
         run: |
           wget https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2019.1_all.deb -O keyring.deb
@@ -130,8 +130,8 @@ jobs:
           cat << EOF | sudo tee /etc/apt/preferences.d/debian
           ${{ matrix.suite.prefer }}
           EOF
-          sudo apt update -y
-          sudo apt install -y --no-install-recommends --allow-downgrades containerd
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends --allow-downgrades containerd
       - name: setup containerd
         run: |
           sudo mkdir -p /mnt/containerd
@@ -149,8 +149,8 @@ jobs:
           sudo systemctl restart containerd
       - name: install kubernetes
         run: |
-          sudo apt update -y
-          sudo apt install -y --no-install-recommends kubeadm
+          sudo apt-get update -y
+          sudo apt-get install -y --no-install-recommends --allow-downgrades kubeadm
       - name: bootstrap kubernetes
         run: |
           sudo kubeadm init --pod-network-cidr=192.168.0.0/16 --cri-socket=unix:///run/containerd/containerd.sock
