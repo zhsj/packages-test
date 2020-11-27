@@ -13,22 +13,49 @@ env:
 jobs:
   critest:
     strategy:
+      fail-fast: false
       matrix:
-        suite:
-          - name: unstable
-            list: |
-              deb http://deb.debian.org/debian/ unstable main
-              deb http://incoming.debian.org/debian-buildd buildd-unstable main
-            prefer: |
-              Package: *
-              Pin-Priority: 1000
-              Pin: release o=Debian, a=unstable
-            cri_tools_ver: master
-    runs-on: ubuntu-latest
+        suite: [unstable, experimental]
+        cri_tools_ver: [master]
+    runs-on: ubuntu-20.04
     steps:
+      - name: configure Debian unstable
+        run: |
+          cat << EOF | sudo tee /etc/apt/sources.list
+          deb http://deb.debian.org/debian/ unstable main
+          deb http://incoming.debian.org/debian-buildd buildd-unstable main
+          EOF
+          cat << EOF | sudo tee /etc/apt/preferences.d/unstable
+          Package: *
+          Pin-Priority: 1000
+          Pin: release o=Debian, a=unstable
+          EOF
+      - name: configure Debian experimental
+        if: ${{ matrix.suite == 'experimental' }}
+        run: |
+          cat << EOF | sudo tee -a /etc/apt/sources.list
+          deb http://deb.debian.org/debian/ experimental main
+          deb http://incoming.debian.org/debian-buildd buildd-experimental main
+          EOF
+          cat << EOF | sudo tee /etc/apt/preferences.d/experimental
+          Package: containerd
+          Pin-Priority: 1001
+          Pin: release o=Debian, a=experimental
+          EOF
+      - name: uninstall moby-engine
+        run: |
+          sudo apt-get purge -y moby-engine moby-containerd moby-runc containernetworking-plugins buildah podman
+      - name: upgrade system
+        run: |
+          sudo rm -vf /etc/apt/sources.list.d/*
+          wget https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2019.1_all.deb -O keyring.deb
+          sudo dpkg -i keyring.deb
+          sudo apt-get purge -y linux-tools-common
+          sudo apt-get update -y
+          #sudo apt-get upgrade -y --allow-downgrades
       - name: install cri tools
         run: |
-          git clone --depth=1 --branch ${{ matrix.suite.cri_tools_ver}} https://github.com/kubernetes-sigs/cri-tools
+          git clone --depth=1 --branch ${{ matrix.cri_tools_ver }} https://github.com/kubernetes-sigs/cri-tools
           make -C cri-tools binaries
           sudo make -C cri-tools install
       - name: configure cni conf
@@ -64,19 +91,8 @@ jobs:
             ]
           }
           EOF
-      - name: uninstall moby-engine
-        run: |
-          sudo apt-get purge -y moby-engine
       - name: install containerd
         run: |
-          wget https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2019.1_all.deb -O keyring.deb
-          sudo dpkg -i keyring.deb
-          cat << EOF | sudo tee /etc/apt/sources.list.d/debian.list
-          ${{ matrix.suite.list }}
-          EOF
-          cat << EOF | sudo tee /etc/apt/preferences.d/debian
-          ${{ matrix.suite.prefer }}
-          EOF
           sudo apt-get update -y
           sudo apt-get install -y --no-install-recommends --allow-downgrades containerd containernetworking-plugins
       - name: check versions
@@ -100,36 +116,51 @@ jobs:
           sudo journalctl -u containerd --no-pager
   kubernetes-e2e:
     strategy:
+      fail-fast: false
       matrix:
-        suite:
-          - name: unstable
-            list: |
-              deb http://deb.debian.org/debian/ unstable main
-              deb http://incoming.debian.org/debian-buildd buildd-unstable main
-            prefer: |
-              Package: *
-              Pin-Priority: 1000
-              Pin: release o=Debian, a=unstable
-        k8s_e2e_ver:
-          - v1.19.0
-    runs-on: ubuntu-latest
+        suite: [unstable, experimental]
+        k8s_e2e_ver: [v1.19.4]
+    runs-on: ubuntu-20.04
     steps:
+      - name: configure Debian unstable
+        run: |
+          cat << EOF | sudo tee /etc/apt/sources.list
+          deb http://deb.debian.org/debian/ unstable main
+          deb http://incoming.debian.org/debian-buildd buildd-unstable main
+          EOF
+          cat << EOF | sudo tee /etc/apt/preferences.d/unstable
+          Package: *
+          Pin-Priority: 1000
+          Pin: release o=Debian, a=unstable
+          EOF
+      - name: configure Debian experimental
+        if: ${{ matrix.suite == 'experimental' }}
+        run: |
+          cat << EOF | sudo tee -a /etc/apt/sources.list
+          deb http://deb.debian.org/debian/ experimental main
+          deb http://incoming.debian.org/debian-buildd buildd-experimental main
+          EOF
+          cat << EOF | sudo tee /etc/apt/preferences.d/experimental
+          Package: containerd
+          Pin-Priority: 1001
+          Pin: release o=Debian, a=experimental
+          EOF
+      - name: uninstall moby-engine
+        run: |
+          sudo apt-get purge -y moby-engine moby-containerd moby-runc containernetworking-plugins buildah podman
+      - name: upgrade system
+        run: |
+          sudo rm -vf /etc/apt/sources.list.d/*
+          wget https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2019.1_all.deb -O keyring.deb
+          sudo dpkg -i keyring.deb
+          sudo apt-get purge -y linux-tools-common
+          sudo apt-get update -y
+          #sudo apt-get upgrade -y --allow-downgrades
       - name: disable swap
         run: |
           sudo swapoff -a -v
-      - name: uninstall moby-engine
-        run: |
-          sudo apt-get purge -y moby-engine
       - name: install containerd
         run: |
-          wget https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2019.1_all.deb -O keyring.deb
-          sudo dpkg -i keyring.deb
-          cat << EOF | sudo tee /etc/apt/sources.list.d/debian.list
-          ${{ matrix.suite.list }}
-          EOF
-          cat << EOF | sudo tee /etc/apt/preferences.d/debian
-          ${{ matrix.suite.prefer }}
-          EOF
           sudo apt-get update -y
           sudo apt-get install -y --no-install-recommends --allow-downgrades containerd
       - name: setup containerd
@@ -149,6 +180,9 @@ jobs:
           sudo systemctl restart containerd
       - name: install kubernetes
         run: |
+          cat << EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
+          deb https://apt.kubernetes.io/ kubernetes-xenial main
+          EOF
           sudo apt-get update -y
           sudo apt-get install -y --no-install-recommends --allow-downgrades kubeadm
       - name: bootstrap kubernetes
@@ -158,7 +192,7 @@ jobs:
           sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
           sudo chown $(id -u):$(id -g) $HOME/.kube/config
           kubectl taint nodes --all node-role.kubernetes.io/master-
-          kubectl apply -f https://docs.projectcalico.org/v3.11/manifests/calico.yaml
+          kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
       - name: check status
         timeout-minutes: 15
         run: |
