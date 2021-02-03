@@ -38,7 +38,7 @@ jobs:
           deb http://incoming.debian.org/debian-buildd buildd-experimental main
           EOF
           cat << EOF | sudo tee /etc/apt/preferences.d/experimental
-          Package: containerd
+          Package: containerd runc
           Pin-Priority: 1001
           Pin: release o=Debian, a=experimental
           EOF
@@ -141,7 +141,7 @@ jobs:
           deb http://incoming.debian.org/debian-buildd buildd-experimental main
           EOF
           cat << EOF | sudo tee /etc/apt/preferences.d/experimental
-          Package: containerd
+          Package: containerd runc
           Pin-Priority: 1001
           Pin: release o=Debian, a=experimental
           EOF
