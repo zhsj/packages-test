@@ -48,7 +48,7 @@ jobs:
       - name: upgrade system
         run: |
           sudo rm -vf /etc/apt/sources.list.d/*
-          wget https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2019.1_all.deb -O keyring.deb
+          wget https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2021.1.1_all.deb -O keyring.deb
           sudo dpkg -i keyring.deb
           sudo apt-get purge -y linux-tools-common
           sudo apt-get update -y
@@ -151,7 +151,7 @@ jobs:
       - name: upgrade system
         run: |
           sudo rm -vf /etc/apt/sources.list.d/*
-          wget https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2019.1_all.deb -O keyring.deb
+          wget https://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2021.1.1_all.deb -O keyring.deb
           sudo dpkg -i keyring.deb
           sudo apt-get purge -y linux-tools-common
           sudo apt-get update -y
