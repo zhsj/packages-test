@@ -180,8 +180,9 @@ jobs:
           sudo systemctl restart containerd
       - name: install kubernetes
         run: |
+          sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg
           cat << EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
-          deb https://apt.kubernetes.io/ kubernetes-xenial main
+          deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main
           EOF
           sudo apt-get update -y
           sudo apt-get install -y --no-install-recommends --allow-downgrades kubeadm
