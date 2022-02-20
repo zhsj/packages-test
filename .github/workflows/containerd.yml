@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         suite: [unstable, experimental]
-        cri_tools_ver: [master]
+        cri_tools_ver: [v1.23.0]
     runs-on: ubuntu-20.04
     steps:
       - name: configure Debian unstable
@@ -38,7 +38,7 @@ jobs:
           deb http://incoming.debian.org/debian-buildd buildd-experimental main
           EOF
           cat << EOF | sudo tee /etc/apt/preferences.d/experimental
-          Package: containerd runc
+          Package: containerd runc containernetworking-plugins
           Pin-Priority: 1001
           Pin: release o=Debian, a=experimental
           EOF
@@ -123,7 +123,7 @@ jobs:
       fail-fast: false
       matrix:
         suite: [unstable, experimental]
-        k8s_e2e_ver: [v1.22.4]
+        k8s_e2e_ver: [v1.23.4]
     runs-on: ubuntu-20.04
     steps:
       - name: configure Debian unstable
@@ -145,7 +145,7 @@ jobs:
           deb http://incoming.debian.org/debian-buildd buildd-experimental main
           EOF
           cat << EOF | sudo tee /etc/apt/preferences.d/experimental
-          Package: containerd runc
+          Package: containerd runc containernetworking-plugins
           Pin-Priority: 1001
           Pin: release o=Debian, a=experimental
           EOF
